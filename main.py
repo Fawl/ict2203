@@ -4,7 +4,7 @@
 ICT2203 Networking Security: Assignment 1
 
 2003109 Jared Marc Song Kye-Jet
-2003XXX Low Weiyang
+2203120 Low Wei yang
 2003XXX Amos Ng Zheng Jie
 2003XXX Kuo Eugene
 
