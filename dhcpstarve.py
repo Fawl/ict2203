@@ -59,3 +59,6 @@ def main():
     occupyIP()
     print("TargetedIP address starved")
     main()
+
+if __name__ == '__main__':
+    main()
