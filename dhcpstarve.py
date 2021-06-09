@@ -13,8 +13,8 @@ def callback_dhcp_handle(pkt):
     Function to handle  captured DHCP packets
     """
     if pkt.haslayer(DHCP):
-        if pkt[DHCP].options[0][1] == 5 and pktIP].dst != "192.168.1.38":
-        IP.append(pktIP].dst)
+        if pkt[DHCP].options[0][1] == 5 and pkt[IP].dst != "192.168.1.38":
+        IP.append(pkt[IP].dst)
             print(str(pktIP].dst)+" registered")
         elif pkt[DHCP].options[0][1] == 6:
             print("NAK received")
