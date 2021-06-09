@@ -5,7 +5,7 @@ from threading import Thread
 MAC = [""]
 IP = []
 DHCP_PACKET_FORMAT = [("message-type", "request"), ("requested_addr",
-                       requested_addr), ("server_id", "192.168.1.1"), "end"]
+                                                    requested_addr), ("server_id", "192.168.1.1"), "end"]
 
 
 def callback_dhcp_handle(pkt):
@@ -15,7 +15,7 @@ def callback_dhcp_handle(pkt):
     if pkt.haslayer(DHCP):
         if pkt[DHCP].options[0][1] == 5 and pkt[IP].dst != "192.168.1.38":
         IP.append(pkt[IP].dst)
-            print(str(pktIP].dst)+" registered")
+        print(str(pkt[IP].dst)+" registered")
         elif pkt[DHCP].options[0][1] == 6:
             print("NAK received")
 
@@ -59,6 +59,7 @@ def main():
     occupyIP()
     print("TargetedIP address starved")
     main()
+
 
 if __name__ == '__main__':
     main()

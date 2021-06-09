@@ -1,4 +1,3 @@
-# /usr/bin/python3
 from scapy.all import *
 from threading import Thread
 from time import sleep
