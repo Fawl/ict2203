@@ -8,8 +8,6 @@ CLIENTMAC = "00:02:a5:ea:54:20"
 SUBMASK = "255.255.255.0"
 GATEWAY = "192.168.0.254"
 
-DHCP_ACK_PKT = Ether()
-
 
 def detect_dhcp(packet):
     """
