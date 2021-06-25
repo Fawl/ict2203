@@ -25,7 +25,7 @@ class SpoofHost():
         Sniffs for DHCP packets, responding accordingly.
         '''
         if DHCP in sniffed_pkt and sniffed_pkt[DHCP].options[0][1] == 2:
-            # match DHCP offer
+            # match DHCP OFFER
             self.dhcp_server_ip = sniffed_pkt[IP].src
             self.dhcp_server_mac = sniffed_pkt[Ether].src
             self._ipv4_addr = sniffed_pkt[BOOTP].yiaddr
@@ -35,7 +35,14 @@ class SpoofHost():
             starve_logger.info(f"TRANSACTION {self._recent_transaction_id}: Sending DHCP REQUEST.")
             req = self.request_pkt
             sendp(req, verbose=0)
-    
+
+        if DHCP in sniffed_pkt and sniffed_pkt[DHCP].options[0][1] == 5:
+            # match DHCP ACK
+            self.dhcp_server_ip = sniffed_pkt[IP].src
+            self.dhcp_server_mac = sniffed_pkt[Ether].src
+
+            starve_logger.info(f"TRANSACTION {self._recent_transaction_id}: DHCP ACK from {self.dhcp_server_mac}.")
+            starve_logger.info(f"TRANSACTION {self._recent_transaction_id}: DHCP handshake completed.")
 
     @staticmethod
     def sniff_thread(self):
