@@ -79,13 +79,18 @@ class DHCPServer():
         sniff(filter="udp and (port 67 or 68)", prn=self.dhcp_callback, store=0)
 
 
+    def show_dhcp_stats(self):
+        print("SERVER DHCP BINDINGS :")
+        for ip in self._distributed_ips:
+            print(f"\t{ip} - {self._dhcp_mapping.get(ip, 'No existing binding')}")
+
     def dhcp_callback(self, pkt):
         '''
         Callback function to perform regular DHCP server functions.
         Responds with OFFER to DISCOVER.
         Responds with ACK to REQUEST.
         '''
-        pkt.show()
+        # pkt.show()
         if pkt[DHCP] and pkt[DHCP].options[0][1] == 1:
             dscvr_mac = pkt[BOOTP].chaddr
             transaction_id = pkt[BOOTP].xid
@@ -98,7 +103,7 @@ class DHCPServer():
                 starve_logger.info(f"Leasing new IP: {new_ip}.")
 
                 self._distributed_ips.add(new_ip)
-                self._dhcp_mapping[dscvr_mac] = new_ip
+                self._dhcp_mapping[new_ip] = dscvr_mac.decode()
 
                 ethernet = Ether(src=self._mac, dst=MAC_BROADCAST)
                 ip = IP(src=self._ip, dst=IPV4_BROADCAST)
@@ -119,11 +124,11 @@ class DHCPServer():
                 starve_logger.info(f"TRANSACTION {transaction_id}: Sending DHCP OFFER.")
 
         elif pkt[DHCP] and pkt[DHCP].options[0][1] == 3:
-            print(self._distributed_ips)
-            req_ip = pkt[BOOTP].ciaddr
-            print(req_ip)
+            # print(self._distributed_ips)
+            # pkt.show()
+            req_ip = pkt[DHCP].options[1][1]
             if req_ip in self._distributed_ips:
-                req_mac = pkt[BOOTP].chaddr
+                req_mac = pkt[Ether].src
                 transaction_id = pkt[BOOTP].xid
                 starve_logger.info(f"TRANSACTION {transaction_id}:  DHCP REQUEST from MAC {req_mac} for IP {req_ip}")
 
@@ -136,13 +141,16 @@ class DHCPServer():
                     siaddr=self._ip,
                     giaddr=self._default_gateway,
                     chaddr=req_mac,
+                    xid=transaction_id,
                 )
                 dhcp = DHCP(options=[("message-type", "ack"), ("server_id", self._ip), ("broadcast_address",
                                                                                         IPV4_BROADCAST), ("router", self._default_gateway), ("subnet_mask", self._subnet_mask)])
                 DHCP_ACK_PKT = ethernet/ip/udp/bootp/dhcp
-                sendp(DHCP_ACK_PKT)
+                sendp(DHCP_ACK_PKT, verbose=0)
 
                 starve_logger.info(f"TRANSACTION {transaction_id}: Sending DHCP ACK")
+                self.show_dhcp_stats()
+
 
 
 def main():
