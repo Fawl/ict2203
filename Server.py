@@ -1,24 +1,5 @@
 from scapy.all import *
-import argparse
 from utils import is_valid_IPV4, is_valid_MAC, starve_logger, MAC_BROADCAST, IPV4_BROADCAST
-
-# These variables can be changed to anything depending on ip of server etc...
-# SERVERIP = "192.168.0.2"
-# CLIENTIP = "192.168.0.6"
-# SERVERMAC = "00:0B:CD:AE:9F:C6"
-# CLIENTMAC = "00:02:a5:ea:54:20"
-# SUBMASK = "255.255.255.0"
-# GATEWAY = "192.168.0.254"
-
-# parser = argparse.ArgumentParser(description="Configure network variables")
-# parser.add_argument('ClientIP', type=str, help='Set Client IP')
-# parser.add_argument('ServerIP', type=str, help='Set Server IP')
-# parser.add_argument('ClientMAC', type=str, help='Set Client MAC')
-# parser.add_argument('ServerMAC', type=str, help='Set Server MAC')
-# parser.add_argument('SubnetMask', type=str, help='Set Subnet Mask')
-# parser.add_argument('DefaultGateway', type=str, help='Set Default Gateway')
-# args = parser.parse_args()
-
 
 class DHCPServer():
     '''
@@ -71,6 +52,8 @@ class DHCPServer():
         self._distributed_ips = set()
         self._dhcp_mapping = dict()
 
+        starve_logger.info("Starting DHCP server!")
+
 
     def start(self):
         '''
@@ -122,6 +105,8 @@ class DHCPServer():
                 sendp(DHCP_OFFER_PKT, verbose=0)
 
                 starve_logger.info(f"TRANSACTION {transaction_id}: Sending DHCP OFFER.")
+            else:
+                starve_logger.warning("More DHCP DISCOVER packets incoming, but pool is depleted!")
 
         elif pkt[DHCP] and pkt[DHCP].options[0][1] == 3:
             # print(self._distributed_ips)

