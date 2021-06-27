@@ -18,7 +18,7 @@ class DHCPServer:
     Basic implementation of a DHCP Server.
     """
 
-    def __init__(self, addr: str = "10.20.30.0/29", mac: str = None, gw: str = None):
+    def __init__(self, addr: str = "192.168.179.0/29", mac: str = None, gw: str = None):
         """DHCPServer initialisation method
 
         :param addr: Assignable address pool of DHCP server, defaults to "10.20.30.0/29"
@@ -88,7 +88,7 @@ class DHCPServer:
         Responds with OFFER to DISCOVER.
         Responds with ACK to REQUEST.
         """
-        pkt.show()
+        # pkt.show()
 
         if DHCP in pkt:
             if BOOTP in pkt:
@@ -133,39 +133,43 @@ class DHCPServer:
                     else:
                         logger.warning("More DHCP DISCOVER packets incoming, but pool is depleted!")
 
-                # Hande DHCP REQUEST frames
+                # Handle DHCP REQUEST frames
                 elif get_option(pkt[DHCP].options, "message-type") == 3:
                     req_ip = get_option(pkt[DHCP].options, "requested_addr")
 
-                    if self._assignments[req_ip] == macbytes2str(client_mac):
-                        logger.info(
-                            f"TRANSACTION {transaction_id}: DHCP REQUEST from MAC {macbytes2str(client_mac)} for IP {req_ip}"
-                        )
+                    try:
+                        if self._assignments[req_ip] == macbytes2str(client_mac):
+                            logger.info(
+                                f"TRANSACTION {transaction_id}: DHCP REQUEST from MAC {macbytes2str(client_mac)} for IP {req_ip}"
+                            )
 
-                        # Prepare & send DHCP ACK frame
-                        bootp = BOOTP(
-                            op=3,
-                            yiaddr=req_ip,
-                            siaddr=self._ip,
-                            giaddr=self._ip,
-                            chaddr=client_mac,
-                            xid=transaction_id,
-                        )
-                        dhcp = DHCP(
-                            options=[
-                                ("message-type", "ack"),
-                                ("server_id", self._ip),
-                                ("broadcast_address", IPV4_BROADCAST),
-                                ("router", self._ip),
-                                ("subnet_mask", self._subnet_mask),
-                                ("lease_time", 3600),
-                                "end",
-                            ]
-                        )
-                        DHCP_ACK_PKT = self._dhcp_header / bootp / dhcp
-                        sendp(DHCP_ACK_PKT, verbose=0)
+                            # Prepare & send DHCP ACK frame
+                            bootp = BOOTP(
+                                op=3,
+                                yiaddr=req_ip,
+                                siaddr=self._ip,
+                                giaddr=self._ip,
+                                chaddr=client_mac,
+                                xid=transaction_id,
+                            )
+                            dhcp = DHCP(
+                                options=[
+                                    ("message-type", "ack"),
+                                    ("server_id", self._ip),
+                                    ("broadcast_address", IPV4_BROADCAST),
+                                    ("router", self._ip),
+                                    ("subnet_mask", self._subnet_mask),
+                                    ("lease_time", 3600),
+                                    "end",
+                                ]
+                            )
+                            DHCP_ACK_PKT = self._dhcp_header / bootp / dhcp
+                            sendp(DHCP_ACK_PKT, verbose=0)
 
-                        logger.info(f"TRANSACTION {transaction_id}: Sending DHCP ACK")
+                            logger.info(f"TRANSACTION {transaction_id}: Sending DHCP ACK")
+                            self.show_dhcp_stats()
+                    except KeyError:
+                        logger.warning(f"TRANSACTION {transaction_id}: DHCP REQUEST received for {req_ip}, unable to handle as not in pool!")
                         self.show_dhcp_stats()
 
 
