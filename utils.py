@@ -1,3 +1,11 @@
+"""
+ICT2203 Assignment 1B 
+LOW WEI YANG (2003120)
+JARED MARC SONG KYE-JET (2003109)
+KUO EUGENE (2003113)
+AMOS NG (2003104)
+"""
+
 import re
 import socket
 import struct
