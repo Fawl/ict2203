@@ -62,7 +62,8 @@ class SpoofHost:
                 logger.info(
                     f"HOST {self._host_id} - TRANSACTION {self._recent_transaction_id}: DHCP OFFER from {self.dhcp_server_mac}."
                 )
-                logger.info(f"HOST {self._host_id} - TRANSACTION {self._recent_transaction_id}: Sending DHCP REQUEST.")
+                logger.info(
+                    f"HOST {self._host_id} - TRANSACTION {self._recent_transaction_id}: Sending DHCP REQUEST.")
                 req = self.request_pkt
                 sendp(req, verbose=0)
 
@@ -120,7 +121,8 @@ class SpoofHost:
         ether = Ether(src=self._mac_addr, dst=MAC_BROADCAST)
         ip = IP(src=IPV4_NETWORK, dst=IPV4_BROADCAST)
         udp = UDP(sport=68, dport=67)
-        bootp = BOOTP(chaddr=RandString(16, b"0123456789abcdef"), xid=self._recent_transaction_id)
+        bootp = BOOTP(chaddr=RandString(16, b"0123456789abcdef"),
+                      xid=self._recent_transaction_id)
         dhcp = DHCP(
             options=[
                 ("message-type", "request"),
@@ -135,9 +137,12 @@ class SpoofHost:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(f"{sys.argv[0]}")
-    parser.add_argument("--num-hosts", dest="hosts", type=int, default=5, help="Number of DHCP clients to spoof.")
-    parser.add_argument("--delay", type=float, default=0.5, help="Delay between each host initiating DHCP handshake.")
-    parser.add_argument("--store-hosts", dest="store", action="store_true", help="Store existing hosts")
+    parser.add_argument("--num-hosts", dest="hosts", type=int,
+                        default=5, help="Number of DHCP clients to spoof.")
+    parser.add_argument("--delay", type=float, default=0.5,
+                        help="Delay between each host initiating DHCP handshake.")
+    parser.add_argument("--store-hosts", dest="store",
+                        action="store_true", help="Store existing hosts")
     args = parser.parse_args()
 
     if args.store:

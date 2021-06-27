@@ -21,7 +21,7 @@ class DHCPServer:
     def __init__(self, addr: str = "192.168.179.0/29", mac: str = None, gw: str = None):
         """DHCPServer initialisation method
 
-        :param addr: Assignable address pool of DHCP server, defaults to "10.20.30.0/29"
+        :param addr: Assignable address pool of DHCP server, defaults to "192.168.179.0/29"
         :type addr: str, optional
         :param mac: MAC address of DHCP server, defaults to first interface
         :type mac: str, optional
@@ -98,13 +98,15 @@ class DHCPServer:
                 # Handle DHCP DISCOVER frames
                 if get_option(pkt[DHCP].options, "message-type") == 1:
                     # Get DHCP DISCOVER packet details
-                    logger.info(f"TRANSACTION {transaction_id}: DHCP DISCOVER from MAC {client_mac}")
+                    logger.info(
+                        f"TRANSACTION {transaction_id}: DHCP DISCOVER from MAC {client_mac}")
 
                     # Check if there is an address to lease
                     available_ip = self.get_leased(macbytes2str(client_mac))
                     if available_ip is not None:
                         # Lease to MAC
-                        self._assignments[available_ip] = macbytes2str(client_mac)
+                        self._assignments[available_ip] = macbytes2str(
+                            client_mac)
 
                         # Prepare & send DHCP OFFER frame
                         bootp = BOOTP(
@@ -129,9 +131,11 @@ class DHCPServer:
                         DHCP_OFFER_PKT = self._dhcp_header / bootp / dhcp
                         sendp(DHCP_OFFER_PKT, verbose=0)
 
-                        logger.info(f"TRANSACTION {transaction_id}: Sending DHCP OFFER.")
+                        logger.info(
+                            f"TRANSACTION {transaction_id}: Sending DHCP OFFER.")
                     else:
-                        logger.warning("More DHCP DISCOVER packets incoming, but pool is depleted!")
+                        logger.warning(
+                            "More DHCP DISCOVER packets incoming, but pool is depleted!")
 
                 # Handle DHCP REQUEST frames
                 elif get_option(pkt[DHCP].options, "message-type") == 3:
@@ -166,10 +170,12 @@ class DHCPServer:
                             DHCP_ACK_PKT = self._dhcp_header / bootp / dhcp
                             sendp(DHCP_ACK_PKT, verbose=0)
 
-                            logger.info(f"TRANSACTION {transaction_id}: Sending DHCP ACK")
+                            logger.info(
+                                f"TRANSACTION {transaction_id}: Sending DHCP ACK")
                             self.show_dhcp_stats()
                     except KeyError:
-                        logger.warning(f"TRANSACTION {transaction_id}: DHCP REQUEST received for {req_ip}, unable to handle as not in pool!")
+                        logger.warning(
+                            f"TRANSACTION {transaction_id}: DHCP REQUEST received for {req_ip}, unable to handle as not in pool!")
                         self.show_dhcp_stats()
 
 
